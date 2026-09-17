@@ -1,0 +1,60 @@
+name: Unpack website
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Unpack website ZIP
+        shell: bash
+        run: |
+          set -e
+          ZIP="sure-step-marine-website-v49-layered-infographic.zip"
+          if [ ! -f "$ZIP" ]; then
+            echo "ZIP already unpacked; nothing to do."
+            exit 0
+          fi
+
+          rm -rf .site-unpack
+          mkdir .site-unpack
+          unzip -q "$ZIP" -d .site-unpack
+
+          SITE_DIR="$(find .site-unpack -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [ -z "$SITE_DIR" ]; then
+            echo "Could not find website folder inside ZIP."
+            exit 1
+          fi
+
+          cp -a "$SITE_DIR"/. .
+          rm -rf .site-unpack
+          rm -f "$ZIP"
+
+          if [ -f index-light.html ]; then
+            mv index-light.html index.html
+          fi
+
+      - name: Commit unpacked website
+        shell: bash
+        run: |
+          if git diff --quiet && [ -z "$(git status --porcelain)" ]; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Unpack Sure Step Marine website"
+          git push
