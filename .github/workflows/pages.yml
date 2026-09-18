@@ -40,3 +40,5 @@ jobs:
         uses: actions/deploy-pages@v4
 
 # Trigger deployment after homepage update
+
+# Trigger deployment after 13mm copy update
