@@ -1,0 +1,50 @@
+name: Update 13mm material copy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/update-13mm-copy.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update-copy:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Replace 13mm copy
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('materials-options.html')
+          text = path.read_text(encoding='utf-8')
+
+          old = 'For specialty applications where extra thickness, cushioning, or visual depth is desirable.'
+          new = 'For specialty applications such as Helm Pads and Coaming Bolsters where extra cushion is desired.'
+
+          if new in text:
+              print('Updated copy already present; no change needed.')
+          elif old not in text:
+              raise SystemExit('Could not find the existing 13mm copy.')
+          else:
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+      - name: Commit copy update
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add materials-options.html
+          git commit -m "Update 13mm materials copy"
+          git push
