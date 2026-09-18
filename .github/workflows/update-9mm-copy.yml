@@ -1,0 +1,67 @@
+name: Update 9mm material copy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/update-9mm-copy.yml
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  update-copy:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Replace 9mm copy
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('materials-options.html')
+          text = path.read_text(encoding='utf-8')
+
+          old = 'A thicker option when additional cushioning or a more substantial finished feel is preferred.'
+          new = 'A thicker option where three colors are chosen to allow for extra custom logos and designs. Also works well for seat cushions and backrests.'
+
+          if new in text:
+              print('Updated copy already present; no change needed.')
+          elif old not in text:
+              raise SystemExit('Could not find the existing 9mm copy.')
+          else:
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+      - name: Commit copy update
+        shell: bash
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add materials-options.html
+            git commit -m "Update 9mm materials copy"
+            git push
+          else
+            echo "No changes to commit."
+          fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
