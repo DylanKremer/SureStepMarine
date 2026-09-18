@@ -1,0 +1,75 @@
+name: Correct 9mm material copy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/correct-9mm-copy.yml
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  correct-copy:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Correct every 9mm description occurrence
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('materials-options.html')
+          text = path.read_text(encoding='utf-8')
+
+          old = 'A thicker option when additional cushioning or a more substantial finished feel is preferred.'
+          previous_new = 'A thicker option where three colors are chosen to allow for extra custom logos and designs. Also works well for seat cushions and backrests.'
+          desired = 'A thicker option where three colors are chosen to allow for extra custom logos and designs. Also works well for seat cushion and backrests.'
+
+          old_count = text.count(old)
+          previous_count = text.count(previous_new)
+          print(f'Old copy occurrences: {old_count}')
+          print(f'Previous updated copy occurrences: {previous_count}')
+
+          text = text.replace(old, desired)
+          text = text.replace(previous_new, desired)
+          path.write_text(text, encoding='utf-8')
+
+          if old in text:
+              raise SystemExit('Old 9mm copy is still present after replacement.')
+          if desired not in text:
+              raise SystemExit('Desired 9mm copy was not found after replacement.')
+
+      - name: Commit corrected copy
+        shell: bash
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add materials-options.html
+            git commit -m "Correct 9mm materials description"
+            git push
+          else
+            echo "No repository change needed."
+          fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload corrected site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy corrected site
+        id: deployment
+        uses: actions/deploy-pages@v4
