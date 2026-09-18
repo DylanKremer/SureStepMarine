@@ -1,0 +1,78 @@
+name: Fix all logo homepage links
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/fix-all-logo-links.yml
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  fix-and-deploy:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Fix every index-light link in HTML files
+        shell: python
+        run: |
+          from pathlib import Path
+
+          changed = []
+          replacements = 0
+          for path in Path('.').rglob('*.html'):
+              text = path.read_text(encoding='utf-8')
+              count = text.count('index-light')
+              if count:
+                  updated = text.replace('index-light', 'index')
+                  path.write_text(updated, encoding='utf-8')
+                  changed.append((str(path), count))
+                  replacements += count
+
+          print(f'Total replacements: {replacements}')
+          for file_name, count in changed:
+              print(f'{file_name}: {count}')
+
+          # Verify no references remain.
+          remaining = []
+          for path in Path('.').rglob('*.html'):
+              text = path.read_text(encoding='utf-8')
+              if 'index-light' in text:
+                  remaining.append(str(path))
+          if remaining:
+              raise SystemExit('index-light references remain in: ' + ', '.join(remaining))
+
+      - name: Commit corrected links
+        shell: bash
+        run: |
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add '*.html'
+            git commit -m "Fix all homepage logo links"
+            git push
+          else
+            echo "No HTML changes needed."
+          fi
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload corrected site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy corrected site
+        id: deployment
+        uses: actions/deploy-pages@v4
